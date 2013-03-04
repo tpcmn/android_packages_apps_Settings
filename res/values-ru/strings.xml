@@ -2523,6 +2523,9 @@
     <string name="lockscreen_background_color_fill">Цвет заливки</string>
     <string name="lockscreen_background_custom_image">Пользоват. изображение</string>
     <string name="lockscreen_background_default_wallpaper">Обои по умолчанию</string>
+    
+        <!-- Launch music player when headset is connected -->
+    <string name="headset_connect_player_summary">Запустить стандартный плеер при подключении наушников</string>
 
     <!-- Safe headset volume restore checkbox -->
     <string name="safe_headset_volume_title">Безопасная громкость наушников</string>
@@ -2551,5 +2554,16 @@
     <string name="auto_brightness_menu_remove">Удалить</string>
 
     <!-- **** CYANOGENMOD ADDITIONS END **** -->
+    
+    <!-- ======================================================================================= -->
+    <!-- AOKP -->
+    <!-- ======================================================================================= -->
 
+    <string name="rom_control_title">Pacman настройки</string>
+    <string name="performance_title">Производительность</string>
+
+    <string name="aokp_version">AOKP версия</string>
+    <string name="aokp_version_default">Неизвестно</string>
+
+    <string name="vibration_title">Вибрация</string>
 </resources>

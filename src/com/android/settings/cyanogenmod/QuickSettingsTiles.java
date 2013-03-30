@@ -14,19 +14,18 @@
  * limitations under the License.
  */
 
-package com.android.settings.paranoid;
+package com.android.settings.cyanogenmod;
 
 import android.app.AlertDialog;
 import android.app.Fragment;
 import android.content.Context;
 import android.content.DialogInterface;
 import android.content.pm.PackageManager;
-import android.content.pm.PackageManager.NameNotFoundException;
 import android.content.res.Resources;
-import android.content.res.Resources.NotFoundException;
 import android.graphics.drawable.Drawable;
 import android.os.Bundle;
 import android.view.LayoutInflater;
+import android.provider.Settings;
 import android.view.Menu;
 import android.view.MenuInflater;
 import android.view.MenuItem;
@@ -35,25 +34,25 @@ import android.view.ViewGroup;
 import android.widget.AdapterView;
 import android.widget.AdapterView.OnItemClickListener;
 import android.widget.ArrayAdapter;
-import android.widget.BaseAdapter;
-import android.widget.ImageView;
 import android.widget.TextView;
 
 import com.android.settings.R;
 import com.android.settings.Utils;
-import com.android.settings.paranoid.CustomTilesUtil.TileInfo;
+import com.android.settings.cyanogenmod.QuickSettingsUtil.TileInfo;
 
 import java.util.ArrayList;
-public class CustomTilesFragment extends Fragment {
+
+public class QuickSettingsTiles extends Fragment {
 
     private static final int MENU_RESET = Menu.FIRST;
-    private static final String SYSTEM_UI = "com.android.systemui";
 
     DraggableGridView mDragView;
     private ViewGroup mContainer;
     LayoutInflater mInflater;
     Resources mSystemUiResources;
-    IconAdapter mTileAdapter;
+    TileAdapter mTileAdapter;
+
+    private int mTileTextSize;
 
     @Override
     public View onCreateView(LayoutInflater inflater, ViewGroup container, Bundle savedInstanceState) {
@@ -63,25 +62,28 @@ public class CustomTilesFragment extends Fragment {
         PackageManager pm = getActivity().getPackageManager();
         if (pm != null) {
             try {
-                mSystemUiResources = pm.getResourcesForApplication(SYSTEM_UI);
-            } catch (NameNotFoundException e) {
+                mSystemUiResources = pm.getResourcesForApplication("com.android.systemui");
+            } catch (Exception e) {
                 mSystemUiResources = null;
             }
         }
-        mTileAdapter = new IconAdapter();
+        mTileAdapter = new TileAdapter(getActivity(), 0);
+        int colCount = Settings.System.getInt(getActivity().getContentResolver(),
+                Settings.System.QUICK_TILES_PER_ROW, 3);
+        updateTileTextSize(colCount);
         return mDragView;
     }
 
     void genTiles() {
         mDragView.removeAllViews();
-        ArrayList<String> tiles = CustomTilesUtil.getTileListFromString(CustomTilesUtil.getCurrentTiles(getActivity()));
+        ArrayList<String> tiles = QuickSettingsUtil.getTileListFromString(QuickSettingsUtil.getCurrentTiles(getActivity()));
         for (String tileindex : tiles) {
-            CustomTilesUtil.TileInfo tile = CustomTilesUtil.TILES.get(tileindex);
+            QuickSettingsUtil.TileInfo tile = QuickSettingsUtil.TILES.get(tileindex);
             if (tile != null) {
                 addTile(tile.getTitleResId(), tile.getIcon(), 0, false);
             }
         }
-        addTile(R.string.add_title, null, R.drawable.ic_menu_add, false);
+        addTile(R.string.tiles_add_title, null, R.drawable.ic_menu_add, false);
     }
 
     /**
@@ -93,11 +95,19 @@ public class CustomTilesFragment extends Fragment {
      */
     void addTile(int titleId, String iconSysId, int iconRegId, boolean newTile) {
         View v = (View) mInflater.inflate(R.layout.qs_tile, null, false);
-        final TextView name = (TextView) v.findViewById(R.id.qs_text);
+        TextView name = (TextView) v.findViewById(R.id.qs_text);
         name.setText(titleId);
+        name.setTextSize(1, mTileTextSize);
         if (mSystemUiResources != null && iconSysId != null) {
-            name.setCompoundDrawablesRelativeWithIntrinsicBounds(null,
-                    getDrawableFromString(iconSysId), null, null);
+            int resId = mSystemUiResources.getIdentifier(iconSysId, null, null);
+            if (resId > 0) {
+                try {
+                    Drawable d = mSystemUiResources.getDrawable(resId);
+                    name.setCompoundDrawablesRelativeWithIntrinsicBounds(null, d, null, null);
+                } catch (Exception e) {
+                    e.printStackTrace();
+                }
+            }
         } else {
             name.setCompoundDrawablesRelativeWithIntrinsicBounds(0, iconRegId, 0, 0);
         }
@@ -110,17 +120,17 @@ public class CustomTilesFragment extends Fragment {
         genTiles();
         mDragView.setOnRearrangeListener(new OnRearrangeListener() {
             public void onRearrange(int oldIndex, int newIndex) {
-                ArrayList<String> tiles = CustomTilesUtil.getTileListFromString(CustomTilesUtil.getCurrentTiles(getActivity()));
+                ArrayList<String> tiles = QuickSettingsUtil.getTileListFromString(QuickSettingsUtil.getCurrentTiles(getActivity()));
                 String oldTile = tiles.get(oldIndex);
                 tiles.remove(oldIndex);
                 tiles.add(newIndex, oldTile);
-                CustomTilesUtil.saveCurrentTiles(getActivity(), CustomTilesUtil.getTileStringFromList(tiles));
+                QuickSettingsUtil.saveCurrentTiles(getActivity(), QuickSettingsUtil.getTileStringFromList(tiles));
             }
             @Override
             public void onDelete(int index) {
-                ArrayList<String> tiles = CustomTilesUtil.getTileListFromString(CustomTilesUtil.getCurrentTiles(getActivity()));
+                ArrayList<String> tiles = QuickSettingsUtil.getTileListFromString(QuickSettingsUtil.getCurrentTiles(getActivity()));
                 tiles.remove(index);
-                CustomTilesUtil.saveCurrentTiles(getActivity(), CustomTilesUtil.getTileStringFromList(tiles));
+                QuickSettingsUtil.saveCurrentTiles(getActivity(), QuickSettingsUtil.getTileStringFromList(tiles));
             }
         });
         mDragView.setOnItemClickListener(new OnItemClickListener() {
@@ -134,12 +144,12 @@ public class CustomTilesFragment extends Fragment {
                         new Thread(new Runnable() {
                             @Override
                             public void run() {
-                                ArrayList<String> curr = CustomTilesUtil.getTileListFromString(CustomTilesUtil.getCurrentTiles(getActivity()));
+                                ArrayList<String> curr = QuickSettingsUtil.getTileListFromString(QuickSettingsUtil.getCurrentTiles(getActivity()));
                                 curr.add(mTileAdapter.getTileId(position));
-                                CustomTilesUtil.saveCurrentTiles(getActivity(), CustomTilesUtil.getTileStringFromList(curr));
+                                QuickSettingsUtil.saveCurrentTiles(getActivity(), QuickSettingsUtil.getTileStringFromList(curr));
                             }
                         }).start();
-                        TileInfo info = CustomTilesUtil.TILES.get(mTileAdapter.getTileId(position));
+                        TileInfo info = QuickSettingsUtil.TILES.get(mTileAdapter.getTileId(position));
                         addTile(info.getTitleResId(), info.getIcon(), 0, true);
                     }
                 });
@@ -153,8 +163,7 @@ public class CustomTilesFragment extends Fragment {
     @Override
     public void onResume() {
         super.onResume();
-        if(Utils.getScreenType(getActivity())
-                == Utils.DEVICE_PHONE) {
+        if (!Utils.isTablet()) {
             mContainer.setPadding(20, 0, 0, 0);
         }
     }
@@ -182,11 +191,11 @@ public class CustomTilesFragment extends Fragment {
 
     private void resetTiles() {
         AlertDialog.Builder alert = new AlertDialog.Builder(getActivity());
-        alert.setTitle(R.string.lock_screen_shortcuts_reset);
-        alert.setMessage(R.string.lock_screen_shortcuts_reset_message);
+        alert.setTitle(R.string.tiles_reset_title);
+        alert.setMessage(R.string.tiles_reset_message);
         alert.setPositiveButton(R.string.ok, new DialogInterface.OnClickListener() {
             public void onClick(DialogInterface dialog, int id) {
-                CustomTilesUtil.resetTiles(getActivity());
+                QuickSettingsUtil.resetTiles(getActivity());
                 genTiles();
             }
         });
@@ -194,70 +203,52 @@ public class CustomTilesFragment extends Fragment {
         alert.create().show();
     }
 
-    private Drawable getDrawableFromString(String drawable) {
-        int resId = mSystemUiResources.getIdentifier(drawable, null, null);
-        if (resId > 0) {
-            try {
-                Drawable d = mSystemUiResources.getDrawable(resId);
-                return d;
-            } catch (NotFoundException e) {
-                e.printStackTrace();
-            }
+    private void updateTileTextSize(int column) {
+        // adjust the tile text size based on column count
+        switch (column) {
+            case 5:
+                mTileTextSize = 7;
+                break;
+            case 4:
+                mTileTextSize = 10;
+                break;
+            case 3:
+            default:
+                mTileTextSize = 12;
+                break;
         }
-        return null;
     }
 
     @SuppressWarnings("rawtypes")
-    public class IconAdapter extends BaseAdapter {
+    static class TileAdapter extends ArrayAdapter {
 
         String[] mTileKeys;
-        Context mContext;
         Resources mResources;
 
-        public IconAdapter() {
-            mContext = getActivity();
+        public TileAdapter(Context context, int textViewResourceId) {
+            super(context, android.R.layout.simple_list_item_1);
             mTileKeys = new String[getCount()];
-            CustomTilesUtil.TILES.keySet().toArray(mTileKeys);
-            mResources = mContext.getResources();
+            QuickSettingsUtil.TILES.keySet().toArray(mTileKeys);
+            mResources = context.getResources();
         }
 
         @Override
         public int getCount() {
-            return CustomTilesUtil.TILES.size();
+            return QuickSettingsUtil.TILES.size();
         }
 
         @Override
         public Object getItem(int position) {
-            String icon = CustomTilesUtil.TILES.get(mTileKeys[position])
-                    .getIcon();
-            return getDrawableFromString(icon);
+            int resid = QuickSettingsUtil.TILES.get(mTileKeys[position])
+                    .getTitleResId();
+            return mResources.getString(resid);
         }
 
         public String getTileId(int position) {
-            return CustomTilesUtil.TILES.get(mTileKeys[position])
+            return QuickSettingsUtil.TILES.get(mTileKeys[position])
                     .getId();
         }
 
-        @Override
-        public long getItemId(int position) {
-            return 0;
-        }
-
-        @Override
-        public View getView(int position, View convertView, ViewGroup parent) {
-            View iView = convertView;
-            if (convertView == null) {
-                iView = View.inflate(mContext, R.layout.preference_icon, null);
-            }
-            TextView tt = (TextView) iView.findViewById(com.android.internal.R.id.title);
-            tt.setText(mContext.getString(CustomTilesUtil.TILES.get(mTileKeys[position])
-                    .getTitleResId()));
-            ImageView i = (ImageView) iView.findViewById(R.id.icon);
-            Drawable ic = ((Drawable) getItem(position)).mutate();
-            i.setImageDrawable(ic);
-
-            return iView;
-        }
     }
 
     public interface OnRearrangeListener {

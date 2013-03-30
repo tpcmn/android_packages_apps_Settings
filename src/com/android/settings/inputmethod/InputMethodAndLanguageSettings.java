@@ -38,14 +38,17 @@ import android.os.Handler;
 import android.preference.CheckBoxPreference;
 import android.preference.ListPreference;
 import android.preference.Preference;
+import android.preference.Preference.OnPreferenceChangeListener;
 import android.preference.PreferenceCategory;
 import android.preference.PreferenceScreen;
 import android.provider.Settings;
+import android.provider.Settings.SettingNotFoundException;
 import android.provider.Settings.System;
 import android.text.TextUtils;
 import android.view.InputDevice;
 import android.view.inputmethod.InputMethodInfo;
 import android.view.inputmethod.InputMethodManager;
+import android.util.Log;
 
 import java.util.ArrayList;
 import java.util.Collections;
@@ -63,9 +66,11 @@ public class InputMethodAndLanguageSettings extends SettingsPreferenceFragment
     private static final String KEY_IME_SWITCHER = "status_bar_ime_switcher";
     private static final String VOLUME_KEY_CURSOR_CONTROL = "volume_key_cursor_control";
     private static final String KEY_STYLUS_ICON_ENABLED = "stylus_icon_enabled";
+
     // false: on ICS or later
     private static final boolean SHOW_INPUT_METHOD_SWITCHER_SETTINGS = false;
 
+    private static final String PREF_DISABLE_FULLSCREEN_KEYBOARD = "disable_fullscreen_keyboard";
     private static final String[] sSystemSettingNames = {
         System.TEXT_AUTO_REPLACE, System.TEXT_AUTO_CAPS, System.TEXT_AUTO_PUNCTUATE,
     };
@@ -95,6 +100,8 @@ public class InputMethodAndLanguageSettings extends SettingsPreferenceFragment
     private SettingsObserver mSettingsObserver;
     private Intent mIntentWaitingForResult;
     private ListPreference mVolumeKeyCursorControl;
+
+    private CheckBoxPreference mDisableFullscreenKeyboard;
 
     @Override
     public void onCreate(Bundle icicle) {
@@ -202,6 +209,12 @@ public class InputMethodAndLanguageSettings extends SettingsPreferenceFragment
             mVolumeKeyCursorControl.setValue(Integer.toString(Settings.System.getInt(getActivity()
                     .getContentResolver(), Settings.System.VOLUME_KEY_CURSOR_CONTROL, 0)));
             mVolumeKeyCursorControl.setSummary(mVolumeKeyCursorControl.getEntry());
+        }
+
+        mDisableFullscreenKeyboard = (CheckBoxPreference) findPreference(PREF_DISABLE_FULLSCREEN_KEYBOARD);
+        if (mDisableFullscreenKeyboard != null) {
+            mDisableFullscreenKeyboard.setChecked(Settings.System.getInt(getActivity().getContentResolver(),
+                   Settings.System.DISABLE_FULLSCREEN_KEYBOARD, 0) == 1);
         }
 
         mHandler = new Handler();
@@ -362,7 +375,15 @@ public class InputMethodAndLanguageSettings extends SettingsPreferenceFragment
                 imm.showInputMethodPicker();
             }
         } else if (preference instanceof CheckBoxPreference) {
+
             final CheckBoxPreference chkPref = (CheckBoxPreference) preference;
+            if (mDisableFullscreenKeyboard != null && chkPref == mDisableFullscreenKeyboard) {
+                boolean checked = ((CheckBoxPreference) preference).isChecked();
+                Settings.System.putInt(getActivity().getContentResolver(),
+                        Settings.System.DISABLE_FULLSCREEN_KEYBOARD, checked ? 1 : 0);
+                return true;
+            }
+
             if (!mHardKeyboardPreferenceList.isEmpty()) {
                 for (int i = 0; i < sHardKeyboardKeys.length; ++i) {
                     if (chkPref == mHardKeyboardCategory.findPreference(sHardKeyboardKeys[i])) {

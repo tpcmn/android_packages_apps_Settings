@@ -29,6 +29,7 @@ import android.preference.PreferenceCategory;
 import android.preference.PreferenceScreen;
 import android.preference.Preference.OnPreferenceClickListener;
 import android.provider.Settings;
+import android.provider.Settings.SettingNotFoundException;
 
 import com.android.settings.R;
 import com.android.settings.SettingsPreferenceFragment;
@@ -37,6 +38,7 @@ import com.android.settings.Utils;
 public class Toolbar extends SettingsPreferenceFragment
         implements Preference.OnPreferenceChangeListener {
 
+    private static final String KEY_QUICK_PULL_DOWN = "quick_pulldown";
     private static final String STATUS_BAR_MAX_NOTIF = "status_bar_max_notifications";
     private static final String NAV_BAR_TABUI_MENU = "nav_bar_tabui_menu";
     private static final String STATUS_BAR_DONOTDISTURB = "status_bar_donotdisturb";
@@ -58,6 +60,7 @@ public class Toolbar extends SettingsPreferenceFragment
     private ListPreference mPieGravity;
     private ListPreference mPieTrigger;
     private ListPreference mPieGap;
+    private CheckBoxPreference mQuickPullDown;
     private CheckBoxPreference mMenuButtonShow;
     private CheckBoxPreference mStatusBarDoNotDisturb;
     private CheckBoxPreference mPieMenu;
@@ -78,6 +81,10 @@ public class Toolbar extends SettingsPreferenceFragment
         PreferenceScreen prefSet = getPreferenceScreen();
         mContext = getActivity();
 
+        mQuickPullDown = (CheckBoxPreference) prefSet.findPreference(KEY_QUICK_PULL_DOWN);
+        mQuickPullDown.setChecked(Settings.System.getInt(mContext.getContentResolver(),
+                Settings.System.QS_QUICK_PULLDOWN, 0) == 1);
+        
         mPieMenu = (CheckBoxPreference) prefSet.findPreference(PIE_MENU);
         mPieMenu.setChecked(Settings.System.getInt(mContext.getContentResolver(),
                 Settings.System.PIE_MENU, 1) == 1);
@@ -130,7 +137,7 @@ public class Toolbar extends SettingsPreferenceFragment
             float pieTrigger = Settings.System.getFloat(mContext.getContentResolver(),
                     Settings.System.PIE_TRIGGER);
             mPieTrigger.setValue(String.valueOf(pieTrigger));
-        } catch(Settings.SettingNotFoundException ex) {
+        } catch(SettingNotFoundException ex) {
             // So what
         }
 
@@ -151,13 +158,8 @@ public class Toolbar extends SettingsPreferenceFragment
             prefSet.removePreference(mStatusBarMaxNotif);
             prefSet.removePreference(mMenuButtonShow);
             prefSet.removePreference(mStatusBarDoNotDisturb);
-
-            if(!Utils.hasNavigationBar()) {
-                prefSet.removePreference(mNavigationCategory);
-            }
-        } else {
-            mNavigationCategory.removePreference(mNavigationBarControls);
-        }
+            prefSet.removePreference(mQuickPullDown);
+        } 
     }
 
     @Override
@@ -166,6 +168,10 @@ public class Toolbar extends SettingsPreferenceFragment
             Settings.System.putInt(getActivity().getApplicationContext().getContentResolver(),
                     Settings.System.NAV_BAR_TABUI_MENU, mMenuButtonShow.isChecked() ? 1 : 0);
             return true;
+        } else if (preference == mQuickPullDown) {	
+            Settings.System.putInt(mContext.getContentResolver(),
+                    Settings.System.QS_QUICK_PULLDOWN,	mQuickPullDown.isChecked()
+                    ? 1 : 0);
         } else if (preference == mStatusBarDoNotDisturb) {
             Settings.System.putInt(getActivity().getContentResolver(),
                     Settings.System.STATUS_BAR_DONOTDISTURB,
@@ -183,7 +189,7 @@ public class Toolbar extends SettingsPreferenceFragment
         } else if (preference == mPieStick) {
             Settings.System.putInt(getActivity().getApplicationContext().getContentResolver(),
                     Settings.System.PIE_STICK, mPieStick.isChecked() ? 1 : 0);
-        }
+        } 
         return super.onPreferenceTreeClick(preferenceScreen, preference);
     }
 
